@@ -1,0 +1,343 @@
+---
+title: "Project 2: Report"
+format: pdf
+editor: visual
+---
+
+# Customer Segmentation in Retail Data
+
+> *Report by: 25090135*
+
+## Introduction
+
+This project report aims to investigate the complexity of customer segmentation in retail data. Through meticulous cleaning ,transformation of the given data-set ,and a comprehensive Exploratory Data Analysis(EDA) methodology the report will uncover insights that inform stakeholders on value points from the customer retail data to make inferences on the firms performance.
+
+## Exploratory Data Analysis (EDA)
+
+This report's EDA process focused on answering the following questions:
+
+1.  Regional Distribution Trends:
+    -   How do product quantities vary across different regions?
+    -   Is there a key region where most products are sold?
+2.  Monthly Sales Trends:
+    -   What are the monthly sales movement trend ?
+3.  Item Popularity
+    -   Which products are the most popular?
+4.  Customer Segmentation (RFM Analysis)
+    -   How can we segment customers and analysis the proportions based on RFM scores?
+
+## Data Analysis
+
+```{r echo=FALSE}
+library(tidyverse)
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(ggrepel)
+library(scales)
+library(ggridges)
+library(readxl)
+library(RColorBrewer)
+#install.packages("TinyTex")
+library(tinytex)
+#nstall_tinytex()
+```
+
+### Cleaning the data
+
+```{r echo=FALSE}
+raw_csr_data <- read_excel("Online Retail copy.xlsx")
+```
+
+```{r echo=FALSE}
+glimpse(raw_csr_data)
+```
+
+```{r echo=FALSE}
+view(raw_csr_data)
+```
+
+Through initial viewing of the data we observe a data set with 541 909 rows and 8 columns. As part of cleaning we analyse the level of NA values and interpret their significance. Through the inspection we recognise 136 534 rows with NA values, upon inspection of this these variable we drop these values as they will hamper analysis.
+
+```{r echo=FALSE}
+sum(is.na(raw_csr_data))
+```
+
+```{r echo=FALSE}
+unique(raw_csr_data$Country)
+```
+
+Furthermore we want to analyse unique variables to remove unwanted variables and group required variables in the data to analyse regions and clean our data for proper statistical view and analytical visualisation.
+
+```{r echo=FALSE}
+# Removing the NA values & Grouping -------------------------------------------------------
+clean_csr_data <- raw_csr_data |> 
+  drop_na(Quantity, UnitPrice, CustomerID) |> 
+  mutate(Cancellations = grepl("C", InvoiceNo)) |> 
+  filter(!grepl("C", InvoiceNo)) |> 
+  mutate(TotalSales = Quantity * UnitPrice) |> 
+  mutate(
+    Regions = case_when(
+      Country %in% c("United Kingdom", "Germany", "Spain", "Belgium",
+                   "Austria", "Czech Republic", "France",
+                   "Channel Island", "France","Norway","Poland",
+                   "Lithuania","Denmark","European Community" ,
+                   "Portugal","Cyprus", "Finland", "Netherlands", 
+                   "Switzerland", "Italy", "Iceland", "Sweden",
+                   "Greece", "Malta", "EIRE"
+                   ) ~ "Europe",
+      Country %in% c("USA", "Canada") ~ "North America",
+      Country %in% c("Singapore", "Japan") ~ "Asia",
+      Country %in% c("Bahrain", "Lebanon", "United Arab Emirates",
+                    "Saudi Arabia")~ "Middle East",
+      Country %in% c("RSA") ~ "Africa",
+      Country %in% c("Brazil") ~ "South America",
+      Country %in% c("Australia") ~ "Australia",
+      Country %in% c("Unspecified") ~ "Unspecified"
+    ) 
+  )
+```
+
+```{r echo=FALSE}
+unique(clean_csr_data$Country)
+```
+
+### Transformations and Visualisations
+
+#### 1. Monthly Sales Trends
+
+```{r echo=FALSE}
+monthly_sales <- clean_csr_data |> 
+  mutate(Month = floor_date(InvoiceDate, "month")) |> 
+  group_by(Month) |> 
+  summarise(TotalSales = sum(Quantity * UnitPrice, na.rm = TRUE))
+
+monthly_sales
+```
+
+```{r echo=FALSE}
+monthly_sales |> 
+  ggplot(aes(x = Month, y = TotalSales)) + 
+  geom_line(color = "red") +
+  labs(
+    title = "Monthly Sales", 
+    subtitle = "",
+    caption = "Data from: Online Retail Platfrom (Jan 2010 - Dec 2011) ",
+    x = "Month", 
+    y = "Total Sales"
+  ) +
+  theme_classic() +
+  scale_color_brewer(palette = "Set1") +
+  scale_y_continuous(labels = label_number(scale = 1e-6, suffix = "m"))
+```
+
+The above graph deplicts the trend of monthly sales from the firm. The data indicates that sales within the firm experienced exponential growth from January to October, however we notice a massive spike nearing December approximately in November. This massive spike can be explained as a result of festive season sales in retail such as Black-Friday and Cyber-Monday which add an additional 20% *(as of 2023)* increase in a hyper purchase season (Absa, 2023). The decline van thus be attributed to consumers maximising the lower price season and stores often being closed for days in the December holiday season and lowered operating times.
+
+#### 2. Top 20 Most Sold Items
+
+```{r echo= FALSE}
+top_20 <- clean_csr_data |> 
+  group_by(Description) |> 
+  summarise(TotalQuantity = sum(Quantity, na.rm = TRUE)) |> 
+  arrange(desc(TotalQuantity)) |> 
+  head(20)
+top_20
+```
+
+```{r echo=FALSE}
+top_20 |> 
+  ggplot(aes(x = reorder(Description, TotalQuantity), y = TotalQuantity)) +
+  geom_col(fill = "red" ) +
+  coord_flip() +
+  labs(
+    title = "Top 20 Most Sold Items",
+    subtitle = "",
+    caption = "Data from: Online Retail Platfrom (Jan 2010 - Dec 2011) ",
+    x = "Product Description", 
+    y = "Total Quantity"
+  ) +
+  theme_minimal() +
+  scale_color_brewer(palette = "Set1")
+```
+
+Monthly sales data represents the revenue generated month-to-month, howevereven more value can be derived from analysing which products generate the most monetary value. The above
+
+#### 3. Analysis of Region Sales Volumes
+
+```{r echo=FALSE}
+region_volumes <- clean_csr_data |>
+  #filter(!is.na(Regions)) |> move the na.values in the cleaning section
+  group_by(Regions) |> 
+  summarise(TotalQuantity = sum(Quantity, na.rm = TRUE)) |> 
+  arrange(desc(TotalQuantity))
+
+region_volumes
+```
+
+In the previous section we noticed the sales trends present within the firm's monthly sales volumes and most sold items. For further analysis we can view the region which generates the most sales for the firm to determine their base operations based on the volume of quantity moved within that region. In this data we can deduce that the firm primary region is Europe, with the nation generation the most quantities being the United Kingdom.
+
+```{r echo=FALSE}
+region_volumes |> 
+  ggplot(aes(x = Regions, y = TotalQuantity, fill = Regions)) +
+    geom_bar(stat = "identity") +
+  labs(
+    title = " World Wide Distribution of Sales Qusntities",
+     x = "Regions",
+    y = "Total Quantity Volumes", 
+    caption = "Data From: Online Retail Platfrom (Jan 2010 - Dec 2011)"
+  ) + 
+  theme_classic() + 
+  scale_fill_brewer(palette = "Set1") + 
+  scale_y_continuous(labels = label_number(scale = 1e-6, suffix = "m")) +
+  scale_x_discrete(guide = guide_axis(n.dodge = 2.5))
+```
+
+#### 4. Region Quantities Outside of Europe
+
+```{r echo=FALSE}
+region_volumes2 <- clean_csr_data |>
+  filter(!is.na(Regions) & Regions != "Europe") |> 
+  group_by(Regions) |> 
+  summarise(TotalQuantity = sum(Quantity, na.rm = TRUE)) |> 
+  arrange(desc(TotalQuantity))
+
+region_volumes2
+
+```
+
+```{r echo=FALSE}
+region_volumes2 |> 
+  ggplot(aes(x = Regions, y = TotalQuantity, fill = Regions)) +
+    geom_bar(stat = "identity") +
+  labs(
+    title = " World Wide Distribution of Sales Qusntities Outside of Europe",
+    x = "Regions",
+    y = "Total Quantity Volumes", 
+    caption = "Data From: Online Retail Platfrom (Jan 2010 - Dec 2011)"
+  ) + 
+  theme_classic() + 
+  scale_fill_brewer(palette = "Dark2") +
+  scale_x_discrete(guide = guide_axis(n.dodge = 2.5))
+  
+
+```
+
+In order to get a better view of quantity distribution throughout different regions provided by (online retail platform, 2024), we eliminate Europe to analyse the value added by other regions. The graph shows that the firm's next most valuable source of sales is the Australian region followed by Asia.
+
+#### 5. Customer Segmentation: RFM Analysis
+
+```{r echo=FALSE}
+#Calc for recency, frequency and Monetary Value (rfm)
+rfm_data <- clean_csr_data |> 
+  group_by(CustomerID) |> 
+  summarise(
+    Recency = as.numeric(difftime(max(InvoiceDate), Sys.Date(), units = "days")), 
+    Frequency = n_distinct(InvoiceNo),
+    Monetary = sum(Quantity * UnitPrice, na.rm = TRUE)
+  )
+#rfm_data
+
+```
+
+```{r echo=FALSE}
+rfm_data <- rfm_data |> 
+  mutate(RecScore = ntile(-Recency, 5),  
+         FreqScore = ntile(Frequency, 5),
+         MonScore = ntile(Monetary, 5),
+         RFM_Score = RecScore + FreqScore + MonScore
+         )
+rfm_data
+
+```
+
+In RFM Analysis we aim to analyse the value in which customers add to the firm in terms of their spending within the Firm. We are able to see that using the frequency in which they purchase from the firm, coupled with their last purchase and the amount in which customers spend (Septia, A. 2024). The analysis using mathematics to extract this information which can serve as a rich insight for firms and provide them with great insight on the scale of their customer retention.
+
+```{r echo=FALSE}
+#Segmentation: 
+rfm_data2 <- rfm_data |> 
+  mutate( Segment = case_when(
+    RFM_Score >= 13 ~ "Veteran Customers",
+    RFM_Score >= 10 ~ "Loyal Customers", 
+    RFM_Score >= 8 ~ "Potential Loyal Customers",
+    RFM_Score >= 5 ~ "New Customers",
+    TRUE ~ "Risk"
+  )) 
+rfm_data2
+
+```
+
+The table above shows us the distribution of the firm's customers based on their RFM scores and through analysis we can deduce the spread through visualisation in a bar chart.
+
+```{r echo=FALSE}
+rfm_data2 |> 
+  ggplot(aes(x = Segment, fill = Segment)) + 
+  geom_bar() + 
+  scale_x_discrete(guide = guide_axis(n.dodge = 2.5)) +
+  scale_fill_brewer(palette = "Set1") +
+  labs(
+    title = "Customer Segmaentation using RFM Metrics",
+    y = "Amount of Customers",
+    x = "Customer Segmentaion",
+    caption = "Data from: Online  Retail Platform (Jan 2010 - Dec 2011)"
+  )
+  
+```
+
+The bar graph above indicates there's a positive distribution as the firm has most of it's customers falling under their loyal bracket and the second highest peak being their potential loyal customers, and the amount of risk customers is low indicating that the firm has positive relations with their consumers and their current business processes are positive and giving good returns on investment.
+
+####  6. Customer Segmentation: Customer Value
+
+We will then analyse the total customer value to derive what each individual customer added in their spend and look at the top 20 most valuable customers.
+
+```{r echo=FALSE}
+# Cust Value = Avg Purchase Value * Average Number of Purchases
+cust_val <- rfm_data2 |> 
+  mutate(CustomerValue = Monetary * Frequency)
+cust_val
+```
+
+```{r echo=FALSE}
+# Top 20 Most Valuable Customers 
+cust_top_20 <- cust_val |> 
+  group_by(CustomerID) |> 
+  summarise(CustomerValue) |> 
+  arrange(desc(CustomerValue)) |> 
+  head(20)
+#cust_top_20
+
+```
+
+```{r echo=FALSE}
+cust_top_20 |> 
+  ggplot(aes(x = reorder(CustomerID, CustomerValue), y = CustomerValue)) +
+  geom_col(fill = "red" ) +
+  coord_flip() +
+  labs(
+    title = "Top 20 Most Valuable Customers",
+    subtitle = "Based on RFM Analysis",
+    caption = "Data from: Online Retail Platform (Jan 2010 - Dec 2011)",
+    x = "Customer ID", 
+    y = "Total Value"
+  ) +
+  theme_classic() +
+  scale_color_brewer(palette = "Set1") #+ 
+  #scale_x_continuous(labels = label_number(scale = 1e-7, suffix = "million"))
+```
+
+The above graph is indicative to show which customers spent the most, which is a valuable stat to have in order to know which consumers to focus most on and keep communication most with for relationship building as they add the most value to the firm.
+
+## Conclusion 
+
+The online retail data platform data in it's wholeness provided invaluable insight into how the firm can grow it's relationships with customers as well as the sources and time frames for which most value is added to the firm. The study was then successful in asweing it's EDA questions
+
+## References 
+
+Absa. 2024. Black Friday Results 24-27 November. *ABSA*. \[Online\] Avaialable: https://cib.absa.africa/wp-content/uploads/2023/12/2023-18553-BlackFriday2023-updated.pdf (Accessed: 5 0ctober 2024)
+
+Septia, Andina. 2024. Inroduction to RFM Analysis in R. *Supertype*. \[Online\] Available: https://supertype.ai/notes/rfm-analysis-r-examples/ (Accessed : 5 October 2024)
+
+WICKHAM, Hadley, ÇETINKAYA-RUNDEL, Mine and GROLEMUND, Garrett, 2023. R for Data Science: Import, Tidy, Transform, Visualize, and Model Data. Second edition. Beijing ; Sebastopol, CA: O'Reilly \[Online\] Available : https://r4ds.hadley.nz
+
+https://stackoverflow.com/questions/73657563/how-to-select-range-of-unique-character-values-in-dplyr
+
+https://stackoverflow.com/questions/28953934/how-to-create-a-simple-heatmap-in-r

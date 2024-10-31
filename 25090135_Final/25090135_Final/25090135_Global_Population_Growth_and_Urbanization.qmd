@@ -1,0 +1,250 @@
+---
+title: "Project 4: Report"
+format: pdf
+editor: visual
+---
+
+# Global Population Growth and Urbanization Report
+
+> *By 25090135*
+
+## Introduction
+
+This project aims to investigate population growth rate and urbanisation metrics for BRICS nations as included in the US World Population Prospectus. The methodology this project will use is the EDA method in order to uncover what insights can be derived for value within the data set.
+
+## Exploratory Data Analysis (EDA) 
+
+This report's EDA process aimed to answer these questions:
+
+1.  Global Population Growth Trend:
+    1.  What is the trend movement and distribution of global population growth rates?
+2.  The spread of indicators within BRICS:
+    1.  What is the statistical spread of BRICS population growth rate and other indicators?
+
+## Data Analysis
+
+```{r echo=FALSE}
+library(tidyverse)
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(ggrepel)
+library(scales)
+library(ggridges)
+library(readxl)
+library(RColorBrewer)
+#install.packages("TinyTex")
+library(tinytex)
+#nstall_tinytex()
+```
+
+### Cleaning the Data
+
+In the cleaning process we analysed the data and noticed falacies in the variable names and we then changed then, as well as removing NA values and columns with no data for further analysis.
+
+```{r echo=FALSE}
+dim_data <- read_csv("WPP2024_Demographic_Indicators_Medium copy.csv") 
+```
+
+```{r echo=FALSE}
+clean_dim_data <- dim_data |> 
+  filter(!is.na(Location)) |> 
+  filter(!is.na(PopGrowthRate)) |> 
+  filter(!is.na(LEx)) |> 
+  rename(q5 = Q5,
+         q4 = Q0040,
+         q4_male = Q0040Male,
+         q4_female = Q0040Female,
+         q6 = Q0060,
+         q6_male = Q0060Male,
+         q6_female = Q0060Female,
+         sort_order = SortOrder,
+         loc_id = LocID,
+         notes = Notes,
+         loc_type_id = LocTypeID,
+         loc_type_name = LocTypeName,
+         parent_id = ParentID,
+         var_id = VarID,
+         total_pop_1_jan = TPopulation1Jan,
+         totla_pop_1_jul = TPopulation1July,
+         total_male_pop_1_jul = TPopulationMale1July,
+         total_female_pop_1_jul = TPopulationFemale1July,
+         pop_density = PopDensity,
+         pop_sex_ratio = PopSexRatio,
+         median_pop_age = MedianAgePop,
+         net_change = NatChange,
+         net_change_rt = NatChangeRT, 
+         pop_change = PopChange,
+         pop_growth_rate = PopGrowthRate,
+         doubling_time = DoublingTime, 
+         births_1519 = Births1519,
+         country_birth_rate = CBR,
+         deaths_male = DeathsMale,
+         deaths_female = DeathsFemale,
+         country_death_rate = CDR,
+         life_exp = LEx,
+         male_life_exp = LExMale,
+         female_life_exp = LExFemale,
+         life_exp_15 = LE15, # Fix this ??----------------------------------------------------
+         life_exp_15_male = LExMale, #Fix this ??
+         life_exp_15_female = LExFemale,
+         life_exp_65 = LE65,
+         life_exp_65_male = LE65Male,
+         life_exp_65_female = LE65Female,
+         life_exp_80 = LE80,
+         life_exp_80_male = LE80Male,
+         life_exp_80_female = LE80Female, #Fixing ends here ----------------------------------
+         infant_deaths = InfantDeaths, 
+         infant_mortality_rate = IMR, 
+         l_births_surviving_age_1 = LBsurvivingAge1,
+         under_5_deaths = Under5Deaths, 
+         net_migrations = NetMigrations,
+         location = Location,
+         crude_net_migration_rate = CNMR
+         ) |> 
+  select(-SDMX_code, -ISO3_code, -ISO2_code, -loc_type_name, -loc_type_id, -parent_id, -sort_order, -notes)
+
+#Find out what LE80 is, find out SRB, MAC, NRR, CNMR, 
+```
+
+```{r echo=FALSE}
+view(clean_dim_data)
+```
+
+### Transformations and Visualisations
+
+In the data we noticed a large amount of locations and thus we isolated Brics countries for our study as seen below:
+
+```{r echo=FALSE}
+#unique(clean_dim_data$location)
+```
+
+```{r echo=FALSE}
+clean_dim_data |> 
+  select(pop_growth_rate) |> 
+  summary()
+```
+
+Within the data our first point of observation was the whole set's population growth rate and in it we see the above statistics, which we will use for comparison.
+
+#### 1. Global Population Growth Rate
+
+```{r echo=FALSE}
+clean_dim_data |> 
+  select(total_pop_1_jan, totla_pop_1_jul, pop_growth_rate, Time) |> 
+  ggplot(aes(x = Time, 
+             y = pop_growth_rate)) +
+  geom_point(binwidth = 20) + 
+  geom_smooth(se = FALSE) +
+  labs(title = "The Periodic Shift of Growth Rate over time",
+       subtitle = "A graphical view of the spread of growth rate alsongisde the estimated future growth",
+       x = "Time period", 
+       y = " Population Growth Rate", 
+       caption = "Data From: US World Population prospectus.") +
+  theme_classic() 
+```
+
+The above scatter plot depicts the movement of population growth throughout the 1950's and the projected growth for the future. The data indicates a stable population growth throughout the ages with certain periods being data out-liers. The out-liers of drastic negative population could reflect periods in time where there has been conflict or periods such as the Chinese government birth laws where the nations aimed to keep the population at a manageable point. Meanwhile periods of drastic population growth could be an indicator of methods of corrections for negative growth rates resulting in a surplus. However despite the out-liers the trend line indicates a stable population growth leveled yet slightly declining line with a correction point being above the 0 value
+
+To gain a better understanding of this project report's primary objective we will be analysing the population metrics of countries that are under the BRICS trade coalition, namely (Brazil, Russia, India, China, and South Africa).
+
+#### 2. Summary Statistics of BRICS nation Data
+
+```{r echo=FALSE}
+brics_countries <- clean_dim_data |> 
+  filter(location %in% c("South Africa", "India", "Brazil", "China", "Russian Federation")) |> 
+  select(location, pop_growth_rate, Time, life_exp, median_pop_age, infant_mortality_rate,net_migrations, Deaths, Births, life_exp_65_female, life_exp_65_male)
+```
+
+```{r echo=FALSE}
+brics_countries |> 
+  summary()
+```
+
+The table above shows us the various distribution of recorded indicator levels. We are able to deduce that the average level of population growth for these developing nations is at a level of 0.6565 ( US
+World Population prospectus, 2024) which is lower than that of the overall global population growth rate observed in the entire data set of 0.9881.
+
+#### 3. BRICS Nations Population Growth Rate 
+
+```{r echo=FALSE}
+brics_countries |> 
+  ggplot(
+    aes(x = Time, y = pop_growth_rate, color = location)
+  ) + geom_density(stat = "identity") + 
+  scale_color_brewer(palette = "Set1") +
+  labs(
+    title = "Overall Population Growth Trends in BRICS Nations",
+    caption = "Data from: US World Population prospectus",
+    x = "Time period",
+    y = "Population Growth Rate"
+  ) +
+  theme_classic()
+```
+
+The above plot gives us a view of how the population growth rate moved throughout the period 1950 to a future prediction of movement to 2100. The graph indicates a declining rate which can be atrributed to modernization and a general trend of people having less children within the countries.
+
+#### 4. Isolated Trend of BRICS Nations Population Growth Rate
+
+```{r echo=FALSE}
+brics_countries |> 
+  ggplot(aes(x = Time, y = pop_growth_rate)) +
+  geom_point() + 
+  geom_smooth(se = FALSE, color = "red")+
+  facet_wrap(~location, scales = "free_y") +
+  theme_classic() +
+  labs(title = "Population Growth Rate over Time",
+       x = "Year",
+       y = "Population Growth Rate") 
+```
+
+Whilst we were able to see the trend on line the above visualisation shows us the individual performance in a better view alongside the distribution of growth rates for each country in each period and future projects. The nations continue to follow a a decline, whilst Russia is projected to grow again in the future.
+
+Furthermore we are able to view additional indicators of population growth and urbanization when we analyse the countries' individual factors such as their Net Migration, Deaths and Births.
+
+#### 5. BRICS Nations Indicators 
+
+```{r echo=FALSE}
+brics_countries |>
+  ggplot(aes(x = location)) + 
+  geom_bar(aes(y = Births, fill = "Births"), position = "dodge", stat = "identity") +
+  geom_bar(aes(y = net_migrations, fill = "Net Migrations"), position = "dodge", stat = "identity") +
+  geom_bar(aes(y = Deaths, fill = "Deaths"), position = "dodge", stat = "identity") +
+  labs(y = "Values", fill = "Indicators") +
+  scale_fill_brewer(palette = "Set1") +
+  theme_classic() 
+```
+
+We are thus able to analyse and compare the distribution of these metrics to draw inference for the above table on the factor affecting these nations. We are thus able to see that China has the highest birth rate throughout the years and tied with India the highest net migrations. Indacting that individuals from these countries to to leave and explore other countries that may be more deveoped and urbanized.
+
+#### 6. Life Expectancy Indicators 
+
+```{r echo=FALSE}
+brics_countries |> 
+  pivot_longer(cols = c(life_exp_65_female, life_exp_65_male), names_to = "gender", values_to = "life_expectancy") |> 
+  ggplot(aes(x = location, y = life_expectancy, fill = gender)) +
+  geom_col(position = "dodge") +
+  labs(
+    title = "Life Expectancy for Males and Females Per Country", 
+    x = "Country",
+    y = "Life Expectancy",
+    caption = ""
+  ) +
+  scale_fill_brewer(palette = "Set1") +
+  theme_classic() 
+  
+
+```
+
+Furthermore we see that at age 65 the life expectancy for males and females int these countries is at a similar level. Such can be attributed to these natiomns falling under developing countries and thus the conditions for life are expected to be at similar levels.
+
+## Conclusion 
+
+Based on the EDA of the US World Population Prospectus data, BRICS nations exhibit significant population growth decline and growing urbanization trends. These trends have important implications for economic development and social structures. The analysis identified migrations and population growth rate movement, which are critical in providing valuable insights for policymakers and planners for future development and planning.
+
+## References
+
+-   https://www.youtube.com/watch?v=CUbPdVn5lr4&t=219s
+
+-   https://www.youtube.com/watch?v=sV5lwAJ7vnQ&t=360s
+
+-   WICKHAM, Hadley, ÇETINKAYA-RUNDEL, Mine and GROLEMUND, Garrett, 2023. R for Data Science: Import, Tidy, Transform, Visualize, and Model Data. Second edition. Beijing ; Sebastopol, CA: O'Reilly \\\[Online\\\] Available : https://r4ds.hadley.nz

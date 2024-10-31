@@ -1,0 +1,298 @@
+---
+title: "25090135_SI348_FINAL"
+format: pdf
+editor: visual
+---
+
+# SI 348 Data Analysis Individual Assignment
+
+> By: 25090135
+
+## Introduction
+
+This project is a deep dive into the analysis. The project will conduct it's analysis of the provided data through R and exploratory data analysis techniques to extract meaningful inferences from two distinct data sets. The project aims to explore the data sets (1.) Customer Segmentation in Retail Data and (2.) Global Population Growth and Urbanization.
+
+### Customer Segmentation in Retail Data
+
+The project aims to analyse the complex behaviour of customers on an online retail platform. Through intricate cleaning and EDA the project delivers insightful information for clear observation and potential decision making.
+
+### Global Population Growth and Urbanization
+
+The
+
+## Exploratory Data Analysis (EDA)
+
+(Describe process you went through here)
+
+-   (Primary statistics to describe key variables here)
+
+-   packages
+
+```{r}
+library(tidyverse)
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(ggrepel)
+library(scales)
+library(ggridges)
+library(readxl)
+library(RColorBrewer)
+```
+
+## Customer Segmentation in Retail
+
+(Describe your EDA Porcess and observations here)
+
+### Cleaning the data
+
+```{r echo=FALSE}
+raw_csr_data <- read_excel("Online Retail.xlsx")
+```
+
+```{r}
+sum(is.na(raw_csr_data))
+```
+
+```{r}
+glimpse(raw_csr_data)
+```
+
+```{r}
+unique(clean_csr_data$Country)
+```
+
+```{r}
+# Removing the NA values & Grouping -------------------------------------------------------
+clean_csr_data <- raw_csr_data |> 
+  drop_na(Quantity, UnitPrice, CustomerID) |> 
+  mutate(Cancellations = grepl("C", InvoiceNo)) |> 
+  filter(!grepl("C", InvoiceNo)) |> 
+  mutate(TotalSales = Quantity * UnitPrice) |> 
+  mutate(
+    Regions = case_when(
+      Country %in% c("United Kingdom", "Germany", "Spain", "Belgium",
+                   "Austria", "Czech Republic", "France",
+                   "Channel Island", "France","Norway","Poland",
+                   "Lithuania","Denmark","European Community" ,
+                   "Portugal","Cyprus", "Finland", "Netherlands", 
+                   "Switzerland", "Italy", "Iceland", "Sweden",
+                   "Greece", "Malta", "EIRE"
+                   ) ~ "Europe",
+      Country %in% c("USA", "Canada") ~ "North America",
+      Country %in% c("Singapore", "Japan") ~ "Asia",
+      Country %in% c("Bahrain", "Lebanon", "United Arab Emirates",
+                    "Saudi Arabia")~ "Middle East",
+      Country %in% c("RSA") ~ "Africa",
+      Country %in% c("Brazil") ~ "South America",
+      Country %in% c("Australia") ~ "Australia",
+      Country %in% c("Unspecified") ~ "Unspecified"
+    ) 
+  )
+```
+
+### Transformations and Visualisations
+
+#### 1. Monthly Sales Trends
+
+```{r}
+monthly_sales <- clean_csr_data |> 
+  mutate(Month = floor_date(InvoiceDate, "month")) |> 
+  group_by(Month) |> 
+  summarise(TotalSales = sum(Quantity * UnitPrice, na.rm = TRUE))
+monthly_sales
+```
+
+```{r}
+monthly_sales |> 
+  ggplot(aes(x = Month, y = TotalSales)) + 
+  geom_line(color = "red") +
+  labs(
+    title = "Monthly Sales", 
+    subtitle = "",
+    caption = "Data from: Online Retail Platfrom (Jan 2010 - Dec 2011) ",
+    x = "Month", 
+    y = "Total Sales"
+  ) +
+  theme_classic() +
+  scale_color_brewer(palette = "Set1") +
+  scale_y_continuous(labels = label_number(scale = 1e-6, suffix = "m"))
+```
+
+Analysis:
+
+#### 2. Top 20 Most Sold Items
+
+```{r}
+top_20 <- clean_csr_data |> 
+  group_by(Description) |> 
+  summarise(TotalQuantity = sum(Quantity, na.rm = TRUE)) |> 
+  arrange(desc(TotalQuantity)) |> 
+  head(20)
+top_20
+```
+
+```{r echo=FALSE}
+top_20 |> 
+  ggplot(aes(x = reorder(Description, TotalQuantity), y = TotalQuantity)) +
+  geom_col(fill = "red" ) +
+  coord_flip() +
+  labs(
+    title = "Top 20 Most Sold Items",
+    subtitle = "",
+    caption = "Data from: Online Retail Platfrom (Jan 2010 - Dec 2011) ",
+    x = "Product Description", 
+    y = "Total Quantity"
+  ) +
+  theme_minimal() +
+  scale_color_brewer(palette = "Set1")
+```
+
+#### 3. Analysis of Region Sales Volumes
+
+```{r}
+region_volumes <- clean_csr_data |>
+  filter(!is.na(Regions)) |> 
+  group_by(Regions) |> 
+  summarise(TotalQuantity = sum(Quantity, na.rm = TRUE)) |> 
+  arrange(desc(TotalQuantity))
+
+region_volumes
+```
+
+```{r}
+region_volumes |> 
+  ggplot(aes(x = Regions, y = TotalQuantity, fill = Regions)) +
+    geom_bar(stat = "identity") +
+  labs(
+    title = " World Wide Distribution of Sales Qusntities"
+  ) + 
+  theme_classic() + 
+  scale_color_brewer(palette = "Set1") + 
+  scale_y_continuous(labels = label_number(scale = 1e-6, suffix = "m")) +
+  scale_x_discrete(guide = guide_axis(n.dodge = 2.5))
+```
+
+Analysis:
+
+#### 4. Region Quantities Outside of Europe
+
+```{r}
+region_volumes2 <- clean_csr_data |>
+  filter(!is.na(Regions) & Regions != "Europe") |> 
+  group_by(Regions) |> 
+  summarise(TotalQuantity = sum(Quantity, na.rm = TRUE)) |> 
+  arrange(desc(TotalQuantity))
+
+region_volumes2
+
+```
+
+```{r}
+region_volumes2 |> 
+  ggplot(aes(x = Regions, y = TotalQuantity, fill = Regions)) +
+    geom_bar(stat = "identity") +
+  labs(
+    title = " World Wide Distribution of Sales Qusntities Outside of Europe"
+  ) + 
+  theme_classic() + 
+  scale_fill_brewer(palette = "Dark2") +
+  scale_x_discrete(guide = guide_axis(n.dodge = 2.5))
+  
+
+```
+
+Analysis:
+
+#### 5. Region Heat Map
+
+```{r}
+
+```
+
+Analysis
+
+#### 6. Customer Segmentation: RFM Analysis
+
+```{r}
+#Calc for recency, frequency and Monetary Value (rfm)
+rfm_data <- clean_csr_data |> 
+  group_by(CustomerID) |> 
+  summarise(
+    Recency = as.numeric(difftime(max(InvoiceDate), Sys.Date(), units = "days")), 
+    Frequency = n_distinct(InvoiceNo),
+    Monetary = sum(Quantity * UnitPrice, na.rm = TRUE)
+  )
+rfm_data
+```
+
+```{r}
+rfm_data <- rfm_data |> 
+  mutate(RecScore = ntile(-Recency, 5),  
+         FreqScore = ntile(Frequency, 5),
+         MonScore = ntile(Monetary, 5),
+         RFM_Score = RecScore + FreqScore + MonScore
+         )
+rfm_data
+
+```
+
+```{r}
+#Segmentation: 
+rfm_data2 <- rfm_data |> 
+  mutate( Segment = case_when(
+    RFM_Score >= 13 ~ "Veteran Customers",
+    RFM_Score >= 10 ~ "Loyal Customers", 
+    RFM_Score >= 8 ~ "Potential Loyal Customers",
+    RFM_Score >= 5 ~ "New Customers",
+    TRUE ~ "Risk"
+  )) 
+rfm_data2
+
+```
+
+```{r}
+rfm_data2 |> 
+  ggplot(aes(x = Segment, fill = Segment)) + 
+  geom_bar() + 
+  scale_x_discrete(guide = guide_axis(n.dodge = 2.5)) +
+  scale_fill_brewer(palette = "Set1")
+  
+```
+
+#### 7. Customer Segmentation: Customer Value
+
+```{r}
+# Cust Value = Avg Purchase Value * Average Number of Purchases
+cust_val <- rfm_data2 |> 
+  mutate(CustomerValue = Monetary * Frequency)
+cust_val
+```
+
+```{r}
+# Top 20 Most Valuable Customers 
+cust_top_20 <- cust_val |> 
+  group_by(CustomerID) |> 
+  summarise(CustomerValue) |> 
+  arrange(desc(CustomerValue)) |> 
+  head(20)
+cust_top_20
+
+```
+
+```{r}
+cust_top_20 |> 
+  ggplot(aes(x = reorder(CustomerID, CustomerValue), y = CustomerValue)) +
+  geom_col(fill = "red" ) +
+  coord_flip() +
+  labs(
+    title = "Top 20 Most Valuable Customers",
+    subtitle = "Based on RFM Analysis",
+    caption = "Data from: ",
+    x = "Customer ID", 
+    y = "Total Value"
+  ) +
+  theme_classic() +
+  scale_color_brewer(palette = "Set1") #+ 
+  #scale_x_continuous(labels = label_number(scale = 1e-7, suffix = "million"))
+```
